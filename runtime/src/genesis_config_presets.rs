@@ -2,13 +2,16 @@ use cumulus_primitives_core::ParaId;
 
 use crate::{
 	AccountId, BalancesConfig, CollatorSelectionConfig, ParachainInfoConfig, PolkadotXcmConfig,
-	RuntimeGenesisConfig, SessionConfig, SessionKeys, SudoConfig, EXISTENTIAL_DEPOSIT,
+	RuntimeGenesisConfig, SessionConfig, SessionKeys, EXISTENTIAL_DEPOSIT,
+	TechnicalCommitteeMembershipConfig,configs::TechnicalMembershipMaxMembers,
+	TreasuryCouncilMembershipConfig,configs::TreasuryMembershipMaxMembers,
 };
 use alloc::{vec, vec::Vec};
 use parachains_common::{genesis_config_helpers::*, AuraId};
 use serde_json::Value;
 use sp_core::sr25519;
 use sp_genesis_builder::PresetId;
+use sp_runtime::{BoundedVec, AccountId32};
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -23,9 +26,21 @@ pub fn template_session_keys(keys: AuraId) -> SessionKeys {
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
-	root: AccountId,
+	technical_committee_members: Vec<AccountId>,
+	treasury_council_members: Vec<AccountId>,
 	id: ParaId,
 ) -> Value {
+
+	let technical_committee_members: Vec<AccountId32> = technical_committee_members.clone();
+    let bounded_technical_committee_members = BoundedVec::<_, TechnicalMembershipMaxMembers>::try_from(
+        technical_committee_members.clone(),
+    ).expect("Technical committee members exceeds the allowed limit");
+
+	let treasury_council_members: Vec<AccountId32> = treasury_council_members.clone();
+    let bounded_treasury_council_members = BoundedVec::<_, TreasuryMembershipMaxMembers>::try_from(
+        treasury_council_members.clone(),
+    ).expect("Treasury council members exceeds the allowed limit");
+
 	let config = RuntimeGenesisConfig {
 		balances: BalancesConfig {
 			balances: endowed_accounts
@@ -57,7 +72,14 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 			..Default::default()
 		},
-		sudo: SudoConfig { key: Some(root) },
+		technical_committee_membership: TechnicalCommitteeMembershipConfig {
+            members: bounded_technical_committee_members,
+            phantom: Default::default(),
+        },
+		treasury_council_membership: TreasuryCouncilMembershipConfig {
+            members: bounded_treasury_council_members,
+            phantom: Default::default(),
+        },
 		..Default::default()
 	};
 
@@ -91,7 +113,16 @@ fn local_testnet_genesis() -> Value {
 			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie"),
+		],
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Dave"),
+			get_account_id_from_seed::<sr25519::Public>("Eve"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+		],
 		1000.into(),
 	)
 }
@@ -123,7 +154,16 @@ fn development_config_genesis() -> Value {
 			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie"),
+		],
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Dave"),
+			get_account_id_from_seed::<sr25519::Public>("Eve"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+		],
 		1000.into(),
 	)
 }

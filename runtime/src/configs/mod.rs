@@ -40,7 +40,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,EnsureSigned,EnsureWithSuccess,
+	EnsureSigned,EnsureWithSuccess,
 };
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
@@ -63,8 +63,10 @@ use super::{
 	RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys,
 	System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, EXISTENTIAL_DEPOSIT, DAYS, HOURS,
 	MAXIMUM_BLOCK_WEIGHT, MICRO_UNIT, NORMAL_DISPATCH_RATIO, SLOT_DURATION, VERSION,
+	TechnicalCommittee, TreasuryCouncil,
 };
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
+use pallet_collective::{EnsureProportionAtLeast, EnsureProportionMoreThan};
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
@@ -177,12 +179,6 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = ConstU8<5>;
 }
 
-impl pallet_sudo::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
@@ -243,7 +239,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
 	type MaxActiveOutboundChannels = ConstU32<128>;
 	type MaxPageSize = ConstU32<{ 1 << 16 }>;
-	type ControllerOrigin = EnsureRoot<AccountId>;
+	type ControllerOrigin = EnsureTwoThirdsTechnicalCommittee;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
 	type WeightInfo = ();
 	type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
@@ -286,7 +282,7 @@ parameter_types! {
 
 /// We allow root and the StakingAdmin to execute privileged collator selection operations.
 pub type CollatorSelectionUpdateOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
+	EnsureTwoThirdsTechnicalCommittee,
 	EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>,
 >;
 
@@ -337,7 +333,7 @@ impl pallet_assets::Config for Runtime {
 	type AssetIdParameter = codec::Compact<u32>;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type ForceOrigin = EnsureTwoThirdsTreasuryCouncil;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -370,9 +366,9 @@ impl pallet_indices::Config for Runtime {
 }
 
 impl pallet_asset_rate::Config for Runtime {
-	type CreateOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type UpdateOrigin = EnsureRoot<AccountId>;
+	type CreateOrigin = EnsureTwoThirdsTreasuryCouncil;
+	type RemoveOrigin = EnsureTwoThirdsTreasuryCouncil;
+	type UpdateOrigin = EnsureTwoThirdsTreasuryCouncil;
 	type Currency = Balances;
 	type AssetKind = u32;
 	type RuntimeEvent = RuntimeEvent;
@@ -391,7 +387,7 @@ parameter_types! {
 impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId; 
     type Currency = Balances;        
-    type RejectOrigin = EnsureRoot<AccountId>;  
+    type RejectOrigin = EnsureTwoThirdsTreasuryCouncil;
 	type RuntimeEvent = RuntimeEvent; 
 	type SpendPeriod = SpendPeriod;
     type Burn = ();                  
@@ -399,11 +395,97 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();  
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
     type MaxApprovals = MaxApprovals;
-	type SpendOrigin = EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, MaxBalance>;
+	type SpendOrigin = EnsureWithSuccess<EnsureTwoThirdsTreasuryCouncil, AccountId, MaxBalance>;
 	type AssetKind = u32;
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = pallet_indices::Pallet<Runtime>;
 	type Paymaster = frame_support::traits::tokens::pay::PayAssetFromAccount<pallet_assets::Pallet<Runtime>, TreasuryAccount>;
 	type BalanceConverter = pallet_asset_rate::Pallet<Runtime>;
 	type PayoutPeriod = SpendPayoutPeriod;
+}
+
+/// Governance - Technical Committee
+pub type TechnicalCommitteeInstance = pallet_collective::Instance1;
+
+pub type EnsureTwoThirdsTechnicalCommittee = EnsureProportionMoreThan<AccountId, TechnicalCommitteeInstance, 2, 3>;
+pub type EnsureAllTechnicalCommittee = EnsureProportionAtLeast<AccountId, TechnicalCommitteeInstance, 1, 1>; 
+
+parameter_types! {
+    pub const TecnicalCommitteeMotionDuration: BlockNumber = 5 * DAYS;
+    pub const TecnicalCommitteeMaxProposals: u32 = 100;
+    pub const TecnicalCommitteeMaxMembers: u32 = 100;
+	pub TechnicalMaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+}
+
+impl pallet_collective::Config<TechnicalCommitteeInstance> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = TecnicalCommitteeMotionDuration;
+	type MaxProposals = TecnicalCommitteeMaxProposals;
+	type MaxMembers = TecnicalCommitteeMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type SetMembersOrigin = EnsureAllTechnicalCommittee;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type MaxProposalWeight = TechnicalMaxProposalWeight;
+}
+
+parameter_types! {
+	pub const TechnicalMembershipMaxMembers: u32 = 100;
+}
+
+impl pallet_membership::Config<TechnicalCommitteeInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AddOrigin = EnsureTwoThirdsTechnicalCommittee;
+	type RemoveOrigin = EnsureAllTechnicalCommittee;
+	type SwapOrigin = EnsureAllTechnicalCommittee;
+	type ResetOrigin = EnsureAllTechnicalCommittee;
+	type PrimeOrigin = EnsureAllTechnicalCommittee;
+	type MembershipInitialized = TechnicalCommittee;
+	type MembershipChanged = TechnicalCommittee;
+	type MaxMembers = TechnicalMembershipMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
+/// Governance - Treasury Council
+pub type TreasuryCouncilInstance = pallet_collective::Instance2;
+
+pub type EnsureTwoThirdsTreasuryCouncil = EnsureProportionMoreThan<AccountId, TreasuryCouncilInstance, 2, 3>;
+pub type EnsureAllTreasuryCouncil = EnsureProportionAtLeast<AccountId, TreasuryCouncilInstance, 1, 1>; 
+
+parameter_types! {
+    pub const TreasuryCouncilMotionDuration: BlockNumber = 5 * DAYS;
+    pub const TreasuryCouncilMaxProposals: u32 = 100;
+    pub const TreasuryCouncilMaxMembers: u32 = 100;
+	pub TreasuryMaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+}
+
+impl pallet_collective::Config<TreasuryCouncilInstance> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = TreasuryCouncilMotionDuration;
+	type MaxProposals = TreasuryCouncilMaxProposals;
+	type MaxMembers = TreasuryCouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type SetMembersOrigin = EnsureAllTreasuryCouncil;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type MaxProposalWeight = TreasuryMaxProposalWeight;
+}
+
+parameter_types! {
+	pub const TreasuryMembershipMaxMembers: u32 = 100;
+}
+
+impl pallet_membership::Config<TreasuryCouncilInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AddOrigin = EnsureTwoThirdsTreasuryCouncil;
+	type RemoveOrigin = EnsureAllTreasuryCouncil;
+	type SwapOrigin = EnsureAllTreasuryCouncil;
+	type ResetOrigin = EnsureAllTreasuryCouncil;
+	type PrimeOrigin = EnsureAllTreasuryCouncil;
+	type MembershipInitialized = TreasuryCouncil;
+	type MembershipChanged = TreasuryCouncil;
+	type MaxMembers = TreasuryMembershipMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }

@@ -42,7 +42,6 @@ pallet-authorship.workspace = true
 pallet-balances.workspace = true
 pallet-message-queue.workspace = true
 pallet-session.workspace = true
-pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
@@ -84,6 +83,10 @@ pallet-indices.workspace = true
 pallet-asset-rate.workspace = true
 pallet-treasury.workspace = true
 
+# Governance
+pallet-collective.workspace = true
+pallet-membership.workspace = true
+
 [features]
 default = ["std"]
 std = [
@@ -113,7 +116,6 @@ std = [
 	"pallet-message-queue/std",
 	"pallet-parachain-template/std",
 	"pallet-session/std",
-	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -141,6 +143,8 @@ std = [
 	"xcm/std",
 	"pallet-assets/std",
 	"pallet-treasury/std",
+	"pallet-collective/std",
+	"pallet-membership/std",
 ]
 
 runtime-benchmarks = [
@@ -158,7 +162,6 @@ runtime-benchmarks = [
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-parachain-template/runtime-benchmarks",
-	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
@@ -169,6 +172,8 @@ runtime-benchmarks = [
 	"xcm-executor/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -187,7 +192,6 @@ try-runtime = [
 	"pallet-message-queue/try-runtime",
 	"pallet-parachain-template/try-runtime",
 	"pallet-session/try-runtime",
-	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-xcm/try-runtime",
@@ -196,6 +200,8 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-treasury/try-runtime",
+	"pallet-collective/try-runtime",
+	"pallet-membership/try-runtime",
 ]
 
 # Enable the metadata hash generation.

@@ -279,10 +279,6 @@ mod runtime {
 	#[runtime::pallet_index(11)]
 	pub type TransactionPayment = pallet_transaction_payment;
 
-	// Governance
-	#[runtime::pallet_index(15)]
-	pub type Sudo = pallet_sudo;
-
 	// Collator support. The order of these 4 are important and shall not change.
 	#[runtime::pallet_index(20)]
 	pub type Authorship = pallet_authorship;
@@ -316,6 +312,16 @@ mod runtime {
 	pub type AssetRate = pallet_asset_rate;
 	#[runtime::pallet_index(43)]
 	pub type Treasury = pallet_treasury;
+
+	// Governance
+	#[runtime::pallet_index(44)]
+	pub type TechnicalCommittee = pallet_collective::Pallet<Runtime, Instance1>;
+	#[runtime::pallet_index(45)]
+	pub type TechnicalCommitteeMembership = pallet_membership::Pallet<Runtime, Instance1>;
+	#[runtime::pallet_index(46)]
+	pub type TreasuryCouncil = pallet_collective::Pallet<Runtime, Instance2>;
+	#[runtime::pallet_index(47)]
+	pub type TreasuryCouncilMembership = pallet_membership::Pallet<Runtime, Instance2>;
 
 	// Template
 	#[runtime::pallet_index(50)]
