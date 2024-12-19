@@ -40,7 +40,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,EnsureSigned,
+	EnsureRoot,EnsureSigned,EnsureWithSuccess,
 };
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
@@ -48,7 +48,10 @@ use polkadot_runtime_common::{
 	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate,
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::Perbill;
+use sp_runtime::{
+	Perbill,
+	traits::AccountIdConversion,
+};
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 
@@ -58,7 +61,7 @@ use super::{
 	AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, ConsensusHook, Hash,
 	MessageQueue, Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys,
-	System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, EXISTENTIAL_DEPOSIT, HOURS,
+	System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, EXISTENTIAL_DEPOSIT, DAYS, HOURS,
 	MAXIMUM_BLOCK_WEIGHT, MICRO_UNIT, NORMAL_DISPATCH_RATIO, SLOT_DURATION, VERSION,
 };
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
@@ -347,4 +350,60 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+}
+
+/// Treasury  
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS; 
+pub const DOLLARS: Balance = 100 * CENTS;
+
+parameter_types! {
+	pub const IndexDeposit: Balance = 1 * DOLLARS;
+}
+
+impl pallet_indices::Config for Runtime {
+	type AccountIndex = u32;
+	type Currency = Balances;
+	type Deposit = IndexDeposit;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_indices::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_asset_rate::Config for Runtime {
+	type CreateOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type Currency = Balances;
+	type AssetKind = u32;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const SpendPeriod: BlockNumber = 1 * DAYS;
+	pub const MaxApprovals: u32 = 100;
+	pub const MaxBalance: Balance = Balance::max_value();
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+	pub const SpendPayoutPeriod: BlockNumber = 30 * DAYS;
+}
+
+impl pallet_treasury::Config for Runtime {
+    type PalletId = TreasuryPalletId; 
+    type Currency = Balances;        
+    type RejectOrigin = EnsureRoot<AccountId>;  
+	type RuntimeEvent = RuntimeEvent; 
+	type SpendPeriod = SpendPeriod;
+    type Burn = ();                  
+    type BurnDestination = ();
+	type SpendFunds = ();  
+    type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+    type MaxApprovals = MaxApprovals;
+	type SpendOrigin = EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, MaxBalance>;
+	type AssetKind = u32;
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = pallet_indices::Pallet<Runtime>;
+	type Paymaster = frame_support::traits::tokens::pay::PayAssetFromAccount<pallet_assets::Pallet<Runtime>, TreasuryAccount>;
+	type BalanceConverter = pallet_asset_rate::Pallet<Runtime>;
+	type PayoutPeriod = SpendPayoutPeriod;
 }

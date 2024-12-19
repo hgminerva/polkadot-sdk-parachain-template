@@ -308,6 +308,14 @@ mod runtime {
 	// Assets
 	#[runtime::pallet_index(40)]
 	pub type Assets = pallet_assets;
+	
+	// Treasury
+	#[runtime::pallet_index(41)]
+	pub type Indices = pallet_indices;
+	#[runtime::pallet_index(42)]
+	pub type AssetRate = pallet_asset_rate;
+	#[runtime::pallet_index(43)]
+	pub type Treasury = pallet_treasury;
 
 	// Template
 	#[runtime::pallet_index(50)]
